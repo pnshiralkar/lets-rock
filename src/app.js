@@ -51,7 +51,7 @@ app.post('/api/register', (req, res) => {
     console.log(req.body);
     let user;
     try {
-        if(!validator.isEmail(req.body.email) || validator.isEmpty('' + req.body.name) || validator.isEmpty('' + req.body.username) || validator.isEmpty('' + req.body.password))
+        if (!validator.isEmail(req.body.email) || validator.isEmpty('' + req.body.name) || validator.isEmpty('' + req.body.username) || validator.isEmpty('' + req.body.password))
             throw 1;
         user = {
             name: req.body.name,

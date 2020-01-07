@@ -7,7 +7,7 @@ const User = new Schema({
     username: String,
     email: String,
     password: String,
-    role: String, enum: ['admin', 'farmer', 'logistics', 'warehouse']
+    role: {type: String, enum: ['admin', 'farmer', 'logistics', 'warehouse']}
 });
 
 module.exports.user = mongoose.model('User', User);

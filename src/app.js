@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
 const validator = require('validator');
+const rabbitMQ = require('./rabbitMQ');
 
 // Express init
 const app = express();
@@ -28,6 +29,7 @@ mongoose.connection.once('open', () => {
 
 // Models
 const User = require('./models/user');
+const Sell = require('./models/farmerSell');
 
 // Verify JWT middleware
 function verifyToken(req, res, next) {
@@ -39,12 +41,18 @@ function verifyToken(req, res, next) {
             if (err)
                 res.sendStatus(403);
             else
-                req.user = user;
+                req.user = user.user;
         });
         next();
     } else {
         res.sendStatus(403);
     }
+}
+
+function ifNotEmpty(str){
+    if(str === '' || str == undefined)
+        throw 0;
+    return str;
 }
 
 app.post('/api/register', (req, res) => {
@@ -116,5 +124,37 @@ app.post('/api/login', (req, res) => {
     });
 });
 
+app.get('/api/check', verifyToken, (req, res)=>{
+    res.json({status: "success", user: req.user})
+}); // temporary
+
+app.post('/api/farmer/sell', verifyToken, (req, res)=>{
+    if(req.user.role !== 'farmer')
+        return res.status(403).json({status: "Forbidden role"});
+
+    let sell;
+    try{
+        sell = new Sell({
+            crop_name: ifNotEmpty(req.body.cropname),
+            weight: ifNotEmpty(req.body.weight),
+            location: ifNotEmpty(req.body.location),
+            status: "inQueue",
+        })
+    }catch (e) {
+        return res.status(400).json({status: "Invalid data"});
+    }
+    if(sell.save() === undefined)
+        return res.status(500);
+    else
+        console.log(req.user.username);
+        User['farmer'].findOne({username: req.user.username}).then((resp)=>{
+            console.log(resp);
+            resp.sellHistory.push(sell._id);
+            rabbitMQ.send('sell', '' + sell._id);
+            resp.save().then(()=>{
+                return res.status(200).json({status: 'success', sellId: sell._id});
+            });
+        });
+});
 
 app.listen(8888);

@@ -157,4 +157,18 @@ app.post('/api/farmer/sell', verifyToken, (req, res)=>{
         });
 });
 
+app.get('/api/farmer/sell/:id', verifyToken, (req, res)=>{
+    if(req.user.role !== 'farmer')
+        return res.status(403).json({status: "Forbidden role"});
+    User.farmer.findOne({username: req.user.username}).then(user=>{
+        if(user.sellHistory.indexOf(req.params.id) === -1)
+            return res.status(400).json({status: "Invalid sellId"});
+        Sell.findOne({_id: req.params.id}).then(sell=>{
+            if(!sell)
+                return res.status(400).json({status: "Invalid sellId"});
+            return res.status(200).json(sell);
+        })
+    })
+});
+
 app.listen(8888);

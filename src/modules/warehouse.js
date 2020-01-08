@@ -59,6 +59,10 @@ module.exports.acceptSell = (req, res)=>{
         sell.warehouseId = req.user._id;
         sell.status = "warehouseAllocated";
         sell.save();
+        User.warehouse.findOne({_id: req.user._id}).then(w=>{
+            w.spaceAvailable = w.spaceAvailable - sell.weight;
+            e.save();
+        })
         // Employ Logistics
         return res.status(200).json({status: "success"});
     })

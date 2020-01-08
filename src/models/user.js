@@ -33,9 +33,10 @@ module.exports.logistics = mongoose.model('Logistic', schema_logistics);
 
 // Warehouse
 const schema_warehouse = extend(User, {
+    orders: [String],
     totalSpace: Number,
     spaceAvailable: Number,
-    location: String,
+    location: [Number],
 });
 
 module.exports.warehouse = mongoose.model('Warehouse', schema_warehouse);

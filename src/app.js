@@ -1,6 +1,7 @@
 // Requires
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
@@ -9,6 +10,7 @@ const validator = require('validator');
 // Express init
 const app = express();
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(cors());
 
 
 // DB Init
@@ -33,6 +35,7 @@ const Sell = require('./models/farmerSell');
 // Custom Modules
 const farmerPortal = require('./modules/farmer');
 const warehousePortal = require('./modules/warehouse');
+const logisticsPortal = require('./modules/logistics');
 
 // Verify JWT middleware
 function verifyToken(req, res, next) {
@@ -58,16 +61,16 @@ function ifNotEmpty(str) {
     return str;
 }
 app.post('/api/register', (req, res) => {
+    // console.log(req);
     console.log(req.body);
     let user;
     try {
-        if (!validator.isEmail(req.body.email) || validator.isEmpty('' + req.body.name) || validator.isEmpty('' + req.body.username) || validator.isEmpty('' + req.body.password))
+        if (isNaN(req.body.mobileNo) || validator.isEmpty('' + req.body.name) || validator.isEmpty('' + req.body.username) || validator.isEmpty('' + req.body.password))
             throw 1;
         user = {
             name: req.body.name,
-            //moile No.
             username: req.body.username,
-            email: req.body.email,
+            mobile: req.body.mobileNo,
             password: md5(req.body.password),
             role: req.body.role
         };
@@ -89,7 +92,12 @@ app.post('/api/register', (req, res) => {
                             user.location = req.body.location;
                             user = new User.farmer(user);
                         } else if (user.role === 'warehouse') {
-                            user.totalSpace = req.body.totalSpace;
+                            try {
+                                user.totalSpace = ifNotEmpty(req.body.totalSpace);
+                                user.spaceAvailable = req.body.totalSpace;
+                            }catch (e) {
+                                res.status(400).json({status: "Specify total space"});
+                            }
                             user.location = [req.body.location_lat, req.body.location_lon];
                             user = new User.warehouse(user);
                         } else if (user.role === 'logistics') {
@@ -112,6 +120,7 @@ app.post('/api/register', (req, res) => {
 });
 
 app.post('/api/login', (req, res) => {
+    console.log(req.body);
     if (['farmer', 'logistics', 'warehouse'].indexOf(req.body.role) === -1) {
         res.status(400).json({status: "Invalid role"});
         return
@@ -121,15 +130,19 @@ app.post('/api/login', (req, res) => {
             console.log(result);
             jwt.sign({user: result}, 'secretkey', (err, token) => {
                 res.json({token});
+                console.log("loggedin");
             })
         } else
             res.status(400).json({status: 'invalid_username_password'});
+        console.log("invalid_username_password");
     });
 });
 
 app.get('/api/check', verifyToken, (req, res)=>{
     return res.json({status: "success", user: req.user})
 }); // temporary
+
+
 
 app.post('/api/farmer/sell', verifyToken, farmerPortal.sell);
 
@@ -147,6 +160,15 @@ app.get('/api/warehouse/sell/:id', verifyToken, warehousePortal.getSell); // Get
 app.post('/api/warehouse/accept/:id', verifyToken, warehousePortal.acceptSell); // Accept specific order
 
 app.post('/api/warehouse/confirmDel/:id', verifyToken, warehousePortal.confirmDelivery); // Confirm delivery of specific order
+
+
+app.get('/api/logistics/orders', verifyToken, logisticsPortal.getOrders);
+
+app.post('/api/logistics/schedule', verifyToken, logisticsPortal.schedule);
+
+app.post('/api/logistics/pickup', verifyToken, logisticsPortal.pickup);
+
+app.post('/api/logistics/deliver', verifyToken, logisticsPortal.deliver);
 
 
 app.listen(8888);

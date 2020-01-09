@@ -5,7 +5,7 @@ const extend = require('mongoose-extend-schema');
 const User = new Schema({
     name: String,
     username: String,
-    email: String,
+    mobile: String,
     password: String,
     role: {type: String, enum: ['admin', 'farmer', 'logistics', 'warehouse']}
 });

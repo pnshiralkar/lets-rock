@@ -4,6 +4,7 @@ const rabbitMQ = require('../rabbitMQ');
 // Models
 const User = require('../models/user');
 const Sell = require('../models/farmerSell');
+const Transport = require('../models/transport');
 
 function ifNotEmpty(str){
     if(str === '' || str == undefined)
@@ -61,9 +62,18 @@ module.exports.acceptSell = (req, res)=>{
         sell.save();
         User.warehouse.findOne({_id: req.user._id}).then(w=>{
             w.spaceAvailable = w.spaceAvailable - sell.weight;
-            e.save();
-        })
+            w.save();
+        });
         // Employ Logistics
+        let trans = new Transport({
+            sellId: sell._id,
+            from: sell.location,
+            to: req.user.location,
+            status: "inQueue",
+            cost: 100 // Change later
+        });
+        if(trans.save() === undefined)
+            console.log("ouch!");
         return res.status(200).json({status: "success"});
     })
 };

@@ -6,6 +6,7 @@ module.exports = mongoose.model('FarmerSell', new Schema({
     //description
     weight: Number, // in kg
     location: [Number], // Location of farm
+    price: Number,
     status: String, // in queue , warehouse allocated, logistics allocated, transit, delivered
     warehouseId: String, // Id of warehouse allocated
     logisticsTransitId: String, // Id of transit order

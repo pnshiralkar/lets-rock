@@ -1,5 +1,5 @@
 // Requires
-const rabbitMQ = require('../rabbitMQ');
+const mySock = require('../mySocket')
 
 // Models
 const User = require('../models/user');
@@ -14,10 +14,17 @@ function ifNotEmpty(str){
 
 
 module.exports.getSellAll = (req, res)=>{
+    console.log(1);
     if(req.user.role !== 'warehouse')
         return res.status(403).json({status: "Invalid role"});
     Sell.find({warehouseId: req.user._id}, (err, sell)=>{
         return res.status(200).json(sell);
+    })
+};
+
+module.exports.getAllWares = (req, res)=>{
+    User.warehouse.find({}, 'location', (err, wares)=>{
+        return res.status(200).json(wares);
     })
 };
 
@@ -32,19 +39,24 @@ module.exports.getSell = (req, res)=>{
 module.exports.getSellStatus = (req, res)=>{
     if(req.user.role !== 'warehouse')
         return res.status(403).json({status: "Invalid role"});
+    // console.log("/api/warehouse/")
     User.warehouse.findOne({username: req.user.username}).then(user => {
         let sells = [];
-        async function f() {
-            for (let i in user.orders) {
-                await Sell.findOne({_id: user.orders[i], status: req.params.status}).then(sell => {
+        console.log(req.user.username);
+        async function f(user1) {
+            for (let i in user1.orders) {
+                console.log(req.params.status)
+                await Sell.findOne({_id: user1.orders[i], status: req.params.status}).then(sell => {
                     if(sell)
                         sells.push(sell);
+                    else
+                        console.log(user1.orders[i], sell);
                 });
-                if (i == user.orders.length - 1)
+                if (i == user.orders.length-1)
                     return res.status(200).json(sells);
             }
         }
-        f();
+        f(user);
     })
 };
 
@@ -62,6 +74,7 @@ module.exports.acceptSell = (req, res)=>{
         sell.save();
         User.warehouse.findOne({_id: req.user._id}).then(w=>{
             w.spaceAvailable = w.spaceAvailable - sell.weight;
+            w.orders.push(sell._id);
             w.save();
         });
         // Employ Logistics
@@ -72,8 +85,34 @@ module.exports.acceptSell = (req, res)=>{
             status: "inQueue",
             cost: 100 // Change later
         });
-        if(trans.save() === undefined)
-            console.log("ouch!");
+        trans.save();
+        mySock.sendAll('sellReqUpdate', sell._id);
+        return res.status(200).json({status: "success"});
+    })
+};
+
+module.exports.rejectSell = (req, res)=>{
+    if(req.user.role !== 'warehouse')
+        return res.status(403).json({status: "Invalid role"});
+    Sell.findOne({_id: req.params.id}).then(sell=>{
+        if(!sell)
+            return res.status(400).json({status: "Invalid sell id"});
+        User.warehouse.findOne({_id: req.user._id}).then(w=>{
+            var index = w.orders.indexOf(sell._id);
+            if (index > -1) {
+                w.orders.splice(index, 1);
+            }
+            w.save();
+        });
+        // Employ Logistics
+        let trans = new Transport({
+            sellId: sell._id,
+            from: sell.location,
+            to: req.user.location,
+            status: "inQueue",
+            cost: 100 // Change later
+        });
+        mySock.sendAll('sellReqUpdate', sell._id);
         return res.status(200).json({status: "success"});
     })
 };

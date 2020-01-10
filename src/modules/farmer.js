@@ -20,6 +20,7 @@ module.exports.sell = (req, res) => {
         sell = new Sell({
             crop_name: ifNotEmpty(req.body.cropname),
             weight: ifNotEmpty(req.body.weight),
+            price: ifNotEmpty(req.body.price),
             location: [req.body.location_lat, req.body.location_lon],
             status: "inQueue",
         });

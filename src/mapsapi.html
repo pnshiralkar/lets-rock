@@ -1,0 +1,83 @@
+<html>
+<body>
+<div id="floating-panel">
+  <input id="address" type="textbox" value="">
+  <input id="submit" type="button" value="Enter">
+</div>
+<div id="map" style="width:90vw;height:90vh"></div>
+
+  <input id="submitFinal" type="button" value="Confirm Location">
+<!-- Replace the value of the key parameter with your own API key. -->
+<script async defer
+src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCTMmhiwXgBKsq-Mxfezibptdo7gzvmwK4&callback=initMap">
+</script>
+<script>
+var marker = null;
+var lat;
+var lng;
+
+function placeMarker(location, map) {
+    if (marker)
+        marker.setMap(null);
+    marker = new google.maps.Marker({
+        position: location,
+        map: map,
+	animation: google.maps.Animation.DROP
+    });
+}
+
+function getAddr(lat, lng) {
+    fetch('https://maps.googleapis.com/maps/api/geocode/json?latlng=' + lat + ',' + lng + '&key=AIzaSyCTMmhiwXgBKsq-Mxfezibptdo7gzvmwK4')
+        .then(res => res.json()).then(res => {
+        document.getElementById('address').value = res.results[0].formatted_address;
+    }).catch(err => {
+    });
+}
+
+function initMap() {
+    navigator.geolocation.getCurrentPosition((i) => {
+        var map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 18,
+            center: {lat: i.coords.latitude, lng: i.coords.longitude}
+        });
+
+        getAddr(i.coords.latitude, i.coords.longitude);
+        lat = i.coords.latitude;
+        lng = i.coords.longitude;
+
+        var geocoder = new google.maps.Geocoder();
+        var marker = new google.maps.Marker();
+
+        document.getElementById('submit').addEventListener('click', function () {
+            geocodeAddress(geocoder, map);
+        });
+
+
+        google.maps.event.addListener(map, "click", function (event) {
+            lat = event.latLng.lat();
+            lng = event.latLng.lng();
+            placeMarker(event.latLng, map);
+            map.setCenter(event.latLng);
+            getAddr(lat, lng);
+        });
+    })
+}
+
+function geocodeAddress(geocoder, resultsMap) {
+    var address = document.getElementById('address').value;
+    geocoder.geocode({'address': address}, function (results, status) {
+        if (status === 'OK') {
+            resultsMap.setCenter(results[0].geometry.location);
+            placeMarker(results[0].geometry.location, resultsMap);
+		lat = results[0].geometry.location.lat();
+		lng = results[0].geometry.location.lng();
+        } else {
+            alert('Geocode was not successful for the following reason: ' + status);
+        }
+    });
+}
+
+document.getElementById('submitFinal').addEventListener('click', function(){
+    console.log(lat, lng);
+});
+</script></body></html>

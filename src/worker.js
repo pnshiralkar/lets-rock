@@ -2,6 +2,12 @@ const rabbitMQ = require('./rabbitMQ');
 const geoJson = require('geojson-tools');
 const mongoose = require('mongoose');
 
+const io = require('socket.io')();
+io.on('connection', (socket)=>{
+    console.log("conn" + socket.handshake.query.token);
+    io.emit('notification', "Hii");
+});
+
 // DB Init
 let dbconn = false;
 mongoose.connect('mongodb://root:pass1234@localhost:27017/', {

@@ -34,7 +34,7 @@ module.exports.receive = (queue, callback)=>{
             });
             console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", queue);
             channel.consume(queue, callback, {
-                noAck: false
+                noAck: true
             });
         });
     });

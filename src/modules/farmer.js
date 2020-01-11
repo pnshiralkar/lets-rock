@@ -32,8 +32,8 @@ module.exports.sell = (req, res) => {
     else
     User['farmer'].findOne({username: req.user.username}).then((resp) => {
         resp.sellHistory.push(sell._id);
-        rabbitMQ.send('sell', '' + sell._id);
         resp.save().then(() => {
+            rabbitMQ.send('sell', '' + sell._id);
             return res.status(200).json({status: 'success', sellId: sell._id});
         });
     });

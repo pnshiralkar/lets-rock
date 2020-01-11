@@ -1,12 +1,12 @@
 <html>
 <body>
-<div id="floating-panel">
-  <input id="address" type="textbox" value="">
-  <input id="submit" type="button" value="Enter">
+<div id="floating-panel" style="text-align: center"><br>
+  <input id="address" type="textbox" value="">&nbsp;&nbsp;
+  <input id="submit" type="button" value="Enter"><br><br>
 </div>
-<div id="map" style="width:90vw;height:90vh"></div>
+<div id="map" style="width:98vw;height:83vh"></div>
 
-  <input id="submitFinal" type="button" value="Confirm Location">
+  <br><center><input id="submitFinal" type="button" value="Confirm Location"></center><br>
 <!-- Replace the value of the key parameter with your own API key. -->
 <script async defer
 src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCTMmhiwXgBKsq-Mxfezibptdo7gzvmwK4&callback=initMap">
@@ -35,13 +35,13 @@ function getAddr(lat, lng) {
 }
 
 function initMap() {
-    navigator.geolocation.getCurrentPosition((i) => {
+  i = {coords:{latitude: 17, longitude: 76}}
         var map = new google.maps.Map(document.getElementById('map'), {
-            zoom: 18,
+            zoom: 8,
             center: {lat: i.coords.latitude, lng: i.coords.longitude}
         });
 
-        getAddr(i.coords.latitude, i.coords.longitude);
+        // getAddr(i.coords.latitude, i.coords.longitude);
         lat = i.coords.latitude;
         lng = i.coords.longitude;
 
@@ -60,7 +60,6 @@ function initMap() {
             map.setCenter(event.latLng);
             getAddr(lat, lng);
         });
-    })
 }
 
 function geocodeAddress(geocoder, resultsMap) {
@@ -78,6 +77,6 @@ function geocodeAddress(geocoder, resultsMap) {
 }
 
 document.getElementById('submitFinal').addEventListener('click', function(){
-    console.log(lat, lng);
+    window.location = "#" + JSON.stringify({lat, lng});
 });
 </script></body></html>

@@ -44,17 +44,20 @@ module.exports.getSellStatus = (req, res)=>{
         let sells = [];
         console.log(req.user.username);
         async function f(user1) {
-            for (let i in user1.orders) {
-                console.log(req.params.status)
-                await Sell.findOne({_id: user1.orders[i], status: req.params.status}).then(sell => {
-                    if(sell)
-                        sells.push(sell);
-                    else
-                        console.log(user1.orders[i], sell);
-                });
-                if (i == user.orders.length-1)
-                    return res.status(200).json(sells);
-            }
+            if(user1.orders.length > 0) {
+                for (let i in user1.orders) {
+                    console.log(req.params.status)
+                    await Sell.findOne({_id: user1.orders[i], status: req.params.status}).then(sell => {
+                        if (sell)
+                            sells.push(sell);
+                        else
+                            console.log(user1.orders[i], sell);
+                    });
+                    if (i == user.orders.length - 1)
+                        return res.status(200).json(sells);
+                }
+            }else
+                return res.status(200).json([]);
         }
         f(user);
     })

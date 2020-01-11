@@ -9,11 +9,13 @@ const validator = require('validator');
 const rabbitMQ = require('./rabbitMQ');
 const geoJson = require('geojson-tools');
 const sockio = require('./mySocket');
+const ejs = require('ejs');
 
 // Express init
 const app = express();
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cors());
+app.set('view engine', 'ejs');
 
 app.use((req, res, next)=>{
     console.log(req.originalUrl);
@@ -159,6 +161,8 @@ app.get('/api/check', verifyToken, (req, res)=>{
 }); // temporary
 
 
+app.get('/maps', (req, res)=>{res.render('waremap')});
+app.get('/getloc', (req, res)=>{res.render('getloc')});
 
 app.post('/api/farmer/sell', verifyToken, farmerPortal.sell);
 
@@ -217,13 +221,12 @@ function topWarehouses(sell, callback) {
             // console.log(sell.location, warehouses.location, warehouses)
             for (let i in warehouses) {
                 wares.push({
-                    val: (demand * 0.6 + geoJson.getDistance([sell.location, warehouses[i].location], 3) * 0.4),
+                    val: (demand * 0.6 + geoJson.getDistance([sell.location, warehouses[i].location], 7) * 0.4),
                     wareId: warehouses[i]._id
                 });
-                    sockio.send(warehouses[i]._id, 'newSellReq', sell._id);
             }
         });
-        wares.sort(compare);
+        await wares.sort(compare);
         callback(wares);
     }
     f();
@@ -235,11 +238,12 @@ rabbitMQ.receive('sell', (msg) => {
     Sell.findOne({_id: sellId}).then(sell => {
         topWarehouses(sell, (topw)=>{
             for(let i in topw){
-                if(i>=3)
+                if(i>2)
                     break;
                 User.warehouse.findOne({_id: topw[i].wareId}).then(ware=>{
                     ware.orders.push(sellId);
-                    ware.save()
+                    ware.save();
+                    sockio.send(ware._id, 'newSellReq', sell);
                 })
             }
         });

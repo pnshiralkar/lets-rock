@@ -12,9 +12,10 @@ function ifNotEmpty(str) {
 }
 
 module.exports.sell = (req, res) => {
-    if (req.user.role !== 'farmer')
+    if (req.user.role !== 'farmer') {
+        console.log(1);
         return res.status(403).json({status: "Forbidden role"});
-
+    }
     let sell;
     try {
         sell = new Sell({
@@ -23,17 +24,21 @@ module.exports.sell = (req, res) => {
             price: ifNotEmpty(req.body.price),
             location: [req.body.location_lat, req.body.location_lon],
             status: "inQueue",
+            wno: 0
         });
     } catch (e) {
         return res.status(400).json({status: "Invalid data"});
     }
-    if (sell.save() === undefined)
+    if (sell.save() === undefined) {
         return res.status(500);
+    }
     else
     User['farmer'].findOne({username: req.user.username}).then((resp) => {
         resp.sellHistory.push(sell._id);
+        console.log(0);
         resp.save().then(() => {
-            rabbitMQ.send('sell', '' + sell._id);
+            rabbitMQ.send('sell', '' + JSON.stringify({sid: sell._id, wno: 0}));
+            console.log('ok');
             return res.status(200).json({status: 'success', sellId: sell._id});
         });
     });

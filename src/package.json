@@ -22,6 +22,7 @@
     "cors": "^2.8.5",
     "ejs": "^3.0.1",
     "express": "^4.17.1",
+    "formidable": "^1.2.1",
     "geojson-tools": "^0.2.2",
     "jsonwebtoken": "^8.5.1",
     "md5": "^2.2.1",
@@ -29,6 +30,7 @@
     "mongoose-extend-schema": "^1.0.0",
     "priorityqueue": "^1.0.0",
     "socket.io": "^2.3.0",
+    "uniqid": "^5.2.0",
     "validator": "^12.1.0"
   }
 }

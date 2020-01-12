@@ -2,6 +2,8 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const formidable = require('formidable');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
 const md5 = require('md5');
@@ -10,17 +12,24 @@ const rabbitMQ = require('./rabbitMQ');
 const geoJson = require('geojson-tools');
 const sockio = require('./mySocket');
 const ejs = require('ejs');
+const uniqid = require('uniqid')
 
 // Express init
 const app = express();
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(cors());
 app.set('view engine', 'ejs');
+app.use('/images', express.static('images'));
 
-app.use((req, res, next)=>{
+app.use((req, res, next) => {
     console.log(req.originalUrl);
     next();
 });
+
+const logRes = (req, res, next)=>{
+    console.log(res.status);
+    next();
+};
 
 let s = app.listen(8888);
 sockio.init(s);
@@ -44,6 +53,7 @@ mongoose.connection.once('open', () => {
 // Models
 const User = require('./models/user');
 const Sell = require('./models/farmerSell');
+const Transport = require('./models/transport');
 
 // Custom Modules
 const farmerPortal = require('./modules/farmer');
@@ -59,9 +69,9 @@ function verifyToken(req, res, next) {
         jwt.verify(req.token, 'secretkey', (err, user) => {
             if (err)
                 return res.sendStatus(403);
-            else{
-                User[user.user.role].findOne({username: user.user.username}).then(u=>{
-                    if(u)
+            else {
+                User[user.user.role].findOne({username: user.user.username}).then(u => {
+                    if (u)
                         req.user = user.user;
                     else
                         return res.sendStatus(403);
@@ -80,6 +90,7 @@ function ifNotEmpty(str) {
         throw 0;
     return str;
 }
+
 app.post('/api/register', (req, res) => {
     // console.log(req);
     console.log(req.body);
@@ -115,7 +126,7 @@ app.post('/api/register', (req, res) => {
                             try {
                                 user.totalSpace = ifNotEmpty(req.body.totalSpace);
                                 user.spaceAvailable = req.body.totalSpace;
-                            }catch (e) {
+                            } catch (e) {
                                 return res.status(400).json({status: "Specify total space"});
                             }
                             user.location = [req.body.location_lat, req.body.location_lon];
@@ -156,13 +167,17 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-app.get('/api/check', verifyToken, (req, res)=>{
+app.get('/api/check', verifyToken, (req, res) => {
     return res.json({status: "success", user: req.user})
 }); // temporary
 
 
-app.get('/maps', (req, res)=>{res.render('waremap')});
-app.get('/getloc', (req, res)=>{res.render('getloc')});
+app.get('/maps', (req, res) => {
+    res.render('waremap')
+});
+app.get('/getloc', (req, res) => {
+    res.render('getloc')
+});
 
 app.post('/api/farmer/sell', verifyToken, farmerPortal.sell);
 
@@ -171,10 +186,9 @@ app.get('/api/farmer/sell', verifyToken, farmerPortal.getSellAll);
 app.get('/api/farmer/sell/:id', verifyToken, farmerPortal.getSell);
 
 
-
 app.get('/api/warehouse/all', warehousePortal.getAllWares); // Get all warehouses
 
-app.get('/api/warehouse/sell', verifyToken, warehousePortal.getSellAll); // Get all warehouse orders
+app.get('/api/warehouse/sell', verifyToken, warehousePortal.getSellAll, logRes); // Get all warehouse orders
 
 app.get('/api/warehouse/:status', verifyToken, warehousePortal.getSellStatus); // Get allocation request orders
 
@@ -195,11 +209,25 @@ app.post('/api/logistics/pickup', verifyToken, logisticsPortal.pickup);
 
 app.post('/api/logistics/deliver', verifyToken, logisticsPortal.deliver);
 
-app.get('/sock', (req, res)=>{
+app.get('/sock', (req, res) => {
     sockio.send("uid33", "name", "val");
 });
 
 
+app.post('/imgupload', (req, res) => {
+    var form = new formidable.IncomingForm();
+    console.log(req);
+    form.parse(req, function (err, fields, files) {
+        var oldpath = files.filetoupload.path;
+        var name = uniqid();
+        var newpath = './images/' + name;
+        fs.rename(oldpath, newpath, function (err) {
+            if (err) throw err;
+            res.status(200).json({name});
+            res.end();
+        });
+    });
+});
 
 
 let demand = 111;
@@ -216,6 +244,7 @@ function topWarehouses(sell, callback) {
     console.log(1);
     let wares = [];
     console.log(sell);
+
     async function f() {
         await User.warehouse.find({spaceAvailable: {$gt: sell.weight}}, (err, warehouses) => {
             // console.log(sell.location, warehouses.location, warehouses)
@@ -229,23 +258,52 @@ function topWarehouses(sell, callback) {
         await wares.sort(compare);
         callback(wares);
     }
+
     f();
 }
 
 rabbitMQ.receive('sell', (msg) => {
-    let sellId = msg.content.toString();
-    console.log(sellId);
-    Sell.findOne({_id: sellId}).then(sell => {
-        topWarehouses(sell, (topw)=>{
-            for(let i in topw){
-                if(i>2)
-                    break;
-                User.warehouse.findOne({_id: topw[i].wareId}).then(ware=>{
-                    ware.orders.push(sellId);
+        console.log(JSON.parse(msg.content.toString()));
+        let sellId = JSON.parse(msg.content.toString());
+        Sell.findOne({_id: sellId.sid}).then(sell => {
+            topWarehouses(sell, (topw) => {
+                console.log(topw);
+                User.warehouse.findOne({_id: topw[sellId.wno].wareId}).then(ware => {
+                    ware.orders.push(sellId.sid);
                     ware.save();
                     sockio.send(ware._id, 'newSellReq', sell);
-                })
-            }
+                    console.log(ware.username);
+                });
+                rabbitMQ.send('confirm', JSON.stringify({params:{id: sellId.sid}, user:{_id: topw[sellId.wno].wareId}}))
+            });
         });
-    })
+});
+
+rabbitMQ.receive('confirm', msg=>{
+    console.log("recieved confirm");
+    let req = JSON.parse(msg.content.toString());
+    setTimeout(()=>{
+        Sell.findOne({_id: req.params.id}).then(sell=>{
+            sell.warehouseId = req.user._id;
+            sell.status = "warehouseAllocated";
+            sell.save();
+            User.warehouse.findOne({_id: req.user._id}).then(w=>{
+                w.spaceAvailable = w.spaceAvailable - sell.weight;
+                w.orders.push(sell._id);
+                w.save();
+                sockio.send(w._id, 'sellReqUpdate', "");
+            });
+            // Employ Logistics
+            let trans = new Transport({
+                sellId: sell._id,
+                from: sell.location,
+                to: req.user.location,
+                status: "inQueue",
+                cost: 100 // Change later
+            });
+            trans.save();
+            // sockio.sendAll('sellReqUpdate', sell._id);
+            console.log("confirmed");
+        })
+    }, 30*1000);
 });

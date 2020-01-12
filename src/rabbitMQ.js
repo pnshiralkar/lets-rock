@@ -10,7 +10,8 @@ module.exports.send = (queue, msg)=>{
                 throw err;
 
             channel.assertQueue(queue, {
-                durable: true
+                durable: true,
+                headers: {'x-delay': 5000}
             });
 
             channel.sendToQueue(queue, Buffer.from(msg));
